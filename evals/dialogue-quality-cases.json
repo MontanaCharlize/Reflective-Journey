@@ -1,0 +1,72 @@
+[
+  {
+    "category": "partial_answer",
+    "question": "我该不该参加这个活动？",
+    "promptedMove": "state_position",
+    "answer": "我更看重时间和自己的兴趣。",
+    "expect": "只记录判断标准，仍需明确当前选择"
+  },
+  {
+    "category": "repetition",
+    "question": "AI 会不会让学生变懒？",
+    "promptedMove": "specify_mechanism",
+    "answer": "我觉得会，因为直接拿答案减少独立练习。",
+    "expect": "若与上一轮基本重复，不应冒充机制回答"
+  },
+  {
+    "category": "position_change",
+    "question": "AI 会不会让学生变懒？",
+    "promptedMove": "generate_alternative",
+    "answer": "我刚才那个判断不太准确，我现在觉得关键不是用不用 AI，而是怎么用。",
+    "expect": "更新总体判断并留下修订记录"
+  },
+  {
+    "category": "retraction",
+    "question": "AI 会不会让学生变懒？",
+    "promptedMove": "request_evidence",
+    "answer": "前面我举的室友那个例子不能说明整体情况，我撤回这个理由。",
+    "expect": "保留历史，同时明确该依据已被撤回"
+  },
+  {
+    "category": "short_valid",
+    "question": "我该不该参加这个活动？",
+    "promptedMove": "state_position",
+    "answer": "不参加",
+    "expect": "短回答也可构成完整选择"
+  },
+  {
+    "category": "decline_direction",
+    "question": "AI 会不会影响学习？",
+    "promptedMove": "request_evidence",
+    "answer": "这个方向我不想继续讨论了，换个角度。",
+    "expect": "不算完成也不逼问原方向，重新选择焦点"
+  },
+  {
+    "category": "off_topic",
+    "question": "AI 会不会影响学习？",
+    "promptedMove": "request_evidence",
+    "answer": "我刚才跑题了，这和这个问题没关系。",
+    "expect": "不记录伪进展，保留当前动作"
+  },
+  {
+    "category": "multi_move",
+    "question": "AI 会不会让学生变懒？",
+    "promptedMove": "state_position",
+    "answer": "我觉得会，但也可能是课程太难；如果只是用 AI 检查自己的思路，可能就不会。",
+    "expect": "允许一轮贡献多个真实状态，但下一问只推进一个动作"
+  },
+  {
+    "category": "long_low_information",
+    "question": "AI 会不会影响学习？",
+    "promptedMove": "request_evidence",
+    "answer": "反正我就是这么觉得，总之我还是这么认为，真的没有补充新的数据、调查或可以核对的证据。",
+    "expect": "长度不能替代动作所需的信息"
+  },
+  {
+    "category": "counterexample_without_position_change",
+    "question": "AI 会不会让学生变懒？",
+    "promptedMove": "seek_counterexample",
+    "answer": "确实有些人用 AI 后学得更好，这可以算一个反例。",
+    "expect": "记录反例，但不自动覆盖总体判断"
+  }
+]

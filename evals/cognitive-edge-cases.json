@@ -1,0 +1,10 @@
+[
+  { "question": "我为什么选择逃避冲突？", "type": "self" },
+  { "question": "我为什么总是选择拖延？", "type": "self" },
+  { "question": "我为什么在选择工作时总是焦虑？", "type": "self" },
+  { "question": "为什么我每次做决定都很焦虑？", "type": "self" },
+  { "question": "我最近总是害怕做选择，这是为什么？", "type": "self" },
+  { "question": "我想弄清楚“选择”到底是什么意思", "type": "concept" },
+  { "question": "我该不该选择去读研？", "type": "decision" },
+  { "question": "这项研究为什么可信？", "type": "evidence" }
+]

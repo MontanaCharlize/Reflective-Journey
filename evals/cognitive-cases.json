@@ -1,0 +1,58 @@
+[
+  {
+    "question": "AI 会不会让大学生越来越不会思考？",
+    "type": "causal",
+    "initialMove": "state_position",
+    "answer": "我觉得会，因为直接看答案减少了独立练习。",
+    "nextMove": "specify_mechanism"
+  },
+  {
+    "question": "这条新闻可信吗？",
+    "type": "evidence",
+    "initialMove": "state_position",
+    "answer": "我暂时怀疑这条消息。",
+    "nextMove": "request_source"
+  },
+  {
+    "question": "我该不该参加这个活动？",
+    "type": "decision",
+    "initialMove": "state_position",
+    "answer": "我更看重时间和自己的兴趣。",
+    "nextMove": "state_position"
+  },
+  {
+    "question": "这道题怎么解？",
+    "type": "problem",
+    "initialMove": "isolate_blocker",
+    "answer": "我卡在第二步，不明白怎样消去变量。",
+    "nextMove": "predict_next_step"
+  },
+  {
+    "question": "什么叫机会成本？",
+    "type": "concept",
+    "initialMove": "state_position",
+    "answer": "我的理解是，选一个方案时放弃的另一个方案的价值。",
+    "nextMove": "seek_counterexample"
+  },
+  {
+    "question": "怎么看这个有争议的观点？",
+    "type": "perspective",
+    "initialMove": "state_position",
+    "answer": "我目前不同意这个说法。",
+    "nextMove": "surface_assumption"
+  },
+  {
+    "question": "我为什么总是拖延？",
+    "type": "self",
+    "initialMove": "specific_example",
+    "answer": "昨天写报告的时候，我先去看了手机。",
+    "nextMove": "identify_trigger"
+  },
+  {
+    "question": "我想聊一聊学习这件事",
+    "type": "exploratory",
+    "initialMove": "clarify_focus",
+    "answer": "我最想先弄清自己怎样分配时间。",
+    "nextMove": "state_position"
+  }
+]

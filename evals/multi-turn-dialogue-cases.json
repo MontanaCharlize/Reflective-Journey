@@ -1,0 +1,119 @@
+[
+  {
+    "id": "causal-ai-learning",
+    "category": "causal",
+    "question": "AI 会不会让大学生越来越不会思考？",
+    "expectedType": "causal",
+    "turns": [
+      {"answer": "我觉得会，因为很多人会直接拿答案。", "answeringMove": "state_position", "nextMove": "specify_mechanism"},
+      {"answer": "直接拿答案会跳过自己尝试，久了可能减少独立练习。", "answeringMove": "specify_mechanism", "nextMove": "generate_alternative"},
+      {"answer": "也可能是课程太难，所以学生本来就更依赖外部帮助。", "answeringMove": "generate_alternative", "nextMove": "surface_assumption"},
+      {"answer": "我的说法成立，前提是独立练习真的会影响以后独立解决问题的能力。", "answeringMove": "surface_assumption", "nextMove": "request_evidence"},
+      {"answer": "如果看到长期对照数据，发现经常先自己尝试再用 AI 的学生能力没有下降，我会重新考虑。", "answeringMove": "request_evidence", "nextMove": "test_boundary"},
+      {"answer": "如果 AI 只用来检查自己的思路，而不是直接给答案，我觉得影响可能就不一样。", "answeringMove": "test_boundary", "nextMove": "synthesize"},
+      {"answer": "我现在觉得关键不是用不用 AI，而是 AI 在什么时候介入，以及人有没有先自己尝试。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  },
+  {
+    "id": "decision-resign",
+    "category": "decision",
+    "question": "我该不该辞掉现在的工作？",
+    "expectedType": "decision",
+    "turns": [
+      {"answer": "暂时不辞。", "answeringMove": "state_position", "nextMove": "define_criteria"},
+      {"answer": "我最看重的是身心状态，其次才是工资。", "answeringMove": "define_criteria", "nextMove": "expose_tradeoff"},
+      {"answer": "如果继续留下，我可能要付出的代价是每天都很疲惫，几乎没有自己的时间。", "answeringMove": "expose_tradeoff", "nextMove": "surface_assumption"},
+      {"answer": "这个判断成立的前提是我短期内找得到别的收入来源。", "answeringMove": "surface_assumption", "nextMove": "request_evidence"},
+      {"answer": "如果我能拿到两个月内找到同等收入工作的概率数据，我会更安心。", "answeringMove": "request_evidence", "nextMove": "test_boundary"},
+      {"answer": "如果公司能让我转组并减少加班，我可能就不会想辞。", "answeringMove": "test_boundary", "nextMove": "synthesize"},
+      {"answer": "我目前还是倾向不马上辞，但会先找工作并给自己设一个两个月期限。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  },
+  {
+    "id": "self-writing-procrastination",
+    "category": "self",
+    "question": "我为什么总是拖延写作？",
+    "expectedType": "self",
+    "turns": [
+      {"answer": "上周三晚上我准备写报告，打开文档十分钟后就去刷视频了。", "answeringMove": "specific_example", "nextMove": "identify_trigger"},
+      {"answer": "看到空白页又想到报告要写很长的时候，我就开始想逃开。", "answeringMove": "identify_trigger", "nextMove": "find_exception"},
+      {"answer": "有一次我先列了三个小标题，那天反而很快就写下去了。", "answeringMove": "find_exception", "nextMove": "surface_assumption"},
+      {"answer": "可能我默认自己必须一开始就写得很好。", "answeringMove": "surface_assumption", "nextMove": "formulate_test"},
+      {"answer": "下次我准备先写三个很粗糙的小标题，只观察自己能不能开始十分钟。", "answeringMove": "formulate_test", "nextMove": "synthesize"},
+      {"answer": "我现在觉得我拖延不一定是懒，更像是任务一显得太大、又要求自己写好时就会逃避。", "answeringMove": "synthesize", "nextMove": "request_evidence"}
+    ]
+  },
+  {
+    "id": "concept-success",
+    "category": "concept",
+    "question": "成功到底是什么意思？",
+    "expectedType": "concept",
+    "turns": [
+      {"answer": "我现在觉得成功是能按自己重视的方式生活。", "answeringMove": "state_position", "nextMove": "clarify_concept"},
+      {"answer": "我的理解是，成功不是别人给的排名，而是生活方式和自己重要的价值比较一致。", "answeringMove": "clarify_concept", "nextMove": "seek_counterexample"},
+      {"answer": "反例可能是，有人完全按自己喜欢的方式生活，但伤害了家人，我不觉得那算成功。", "answeringMove": "seek_counterexample", "nextMove": "surface_assumption"},
+      {"answer": "所以我的定义其实默认了不能严重损害别人。", "answeringMove": "surface_assumption", "nextMove": "test_boundary"},
+      {"answer": "如果一个人被迫做不喜欢的工作，但能照顾家人，我也不敢说他不成功。", "answeringMove": "test_boundary", "nextMove": "synthesize"},
+      {"answer": "我现在会说，成功是能在自己的价值和重要责任之间做出自己认可的长期选择。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  },
+  {
+    "id": "perspective-exam-fairness",
+    "category": "perspective",
+    "question": "高考按分数录取公平吗？",
+    "expectedType": "perspective",
+    "turns": [
+      {"answer": "我觉得总体算公平，因为规则比较明确。", "answeringMove": "state_position", "nextMove": "surface_assumption"},
+      {"answer": "我的判断默认了大家获得教育资源的机会差不多。", "answeringMove": "surface_assumption", "nextMove": "generate_alternative"},
+      {"answer": "另一种看法是，分数规则相同不代表起点相同。", "answeringMove": "generate_alternative", "nextMove": "distinguish_fact_value"},
+      {"answer": "事实层面是不同地区和家庭资源不同；价值层面是我认为制度应该补偿一部分起点差异。", "answeringMove": "distinguish_fact_value", "nextMove": "request_evidence"},
+      {"answer": "如果有数据表明资源差异对成绩影响很小，我会降低对这个问题的担心。", "answeringMove": "request_evidence", "nextMove": "test_boundary"},
+      {"answer": "如果不同地区采用完全不同的录取机会，单纯看统一分数也未必公平。", "answeringMove": "test_boundary", "nextMove": "synthesize"},
+      {"answer": "我现在觉得它在考试规则层面比较公平，但在机会公平层面仍然有明显问题。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  },
+  {
+    "id": "evidence-coffee",
+    "category": "evidence",
+    "question": "“每天喝咖啡能延长寿命”这个消息靠谱吗？",
+    "expectedType": "evidence",
+    "turns": [
+      {"answer": "我暂时怀疑，不能只看标题。", "answeringMove": "state_position", "nextMove": "request_source"},
+      {"answer": "我会先找原始论文或者研究机构发布的报告。", "answeringMove": "request_source", "nextMove": "surface_assumption"},
+      {"answer": "我默认这个报道没有把相关性说成因果。", "answeringMove": "surface_assumption", "nextMove": "request_evidence"},
+      {"answer": "如果有大样本长期研究并控制吸烟、年龄等变量，我会更相信。", "answeringMove": "request_evidence", "nextMove": "seek_counterexample"},
+      {"answer": "反例是，不喝咖啡的人也许本来健康状况就更差，所以相关性不一定是咖啡造成的。", "answeringMove": "seek_counterexample", "nextMove": "test_boundary"},
+      {"answer": "如果结论只对没有心血管风险的人群成立，我觉得就不能泛化到所有人。", "answeringMove": "test_boundary", "nextMove": "synthesize"},
+      {"answer": "我现在还是不会直接相信咖啡延寿，最多认为可能存在相关性，需要看研究设计。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  },
+  {
+    "id": "problem-probability",
+    "category": "problem",
+    "question": "这道概率题我该怎么做？",
+    "expectedType": "problem",
+    "turns": [
+      {"answer": "我卡在第三步，不知道怎么把题目的条件代进条件概率公式。", "answeringMove": "isolate_blocker", "nextMove": "predict_next_step"},
+      {"answer": "我猜下一步要先把已知条件写成 P(A|B)。", "answeringMove": "predict_next_step", "nextMove": "surface_assumption"},
+      {"answer": "我默认这里的两个事件不是独立的，否则公式会不一样。", "answeringMove": "surface_assumption", "nextMove": "test_boundary"},
+      {"answer": "如果题目明确说两个事件独立，那我现在这套写法就不适用。", "answeringMove": "test_boundary", "nextMove": "request_evidence"},
+      {"answer": "如果用一道已知答案的类似题做对照，结果一致，我会更相信这一步。", "answeringMove": "request_evidence", "nextMove": "synthesize"},
+      {"answer": "我现在觉得这题的关键是先识别条件事件，再决定用哪个概率公式。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  },
+  {
+    "id": "exploratory-life",
+    "category": "exploratory",
+    "question": "我最近总觉得生活没意思，想弄清楚怎么回事。",
+    "expectedType": "exploratory",
+    "turns": [
+      {"answer": "我最想先弄清是不是每天的生活太重复了。", "answeringMove": "clarify_focus", "nextMove": "state_position"},
+      {"answer": "我目前觉得重复和缺少期待感可能是主要原因。", "answeringMove": "state_position", "nextMove": "surface_assumption"},
+      {"answer": "可能我默认了生活必须经常有新鲜感才算有意思。", "answeringMove": "surface_assumption", "nextMove": "generate_alternative"},
+      {"answer": "也可能不是重复，而是最近睡眠太差，所以什么都提不起兴趣。", "answeringMove": "generate_alternative", "nextMove": "request_evidence"},
+      {"answer": "如果我记录一周睡眠、活动和心情，再比较高低精力的日子，可能能看出一点关系。", "answeringMove": "request_evidence", "nextMove": "test_boundary"},
+      {"answer": "如果休息充足但生活仍然很重复，我还是会无聊；但如果和喜欢的人一起做同样的事，也可能没那么无聊。", "answeringMove": "test_boundary", "nextMove": "synthesize"},
+      {"answer": "我现在觉得不是单一的重复，而是低精力和缺少自己期待的事情叠在一起。", "answeringMove": "synthesize", "nextMove": "formulate_test"}
+    ]
+  }
+]
