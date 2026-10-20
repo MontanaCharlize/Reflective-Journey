@@ -49,6 +49,7 @@ export interface TraceItem {
   move?: CognitiveMove
   plannerRecordId?: string
   source?: TraceSource
+  reflection?: string
 }
 
 export interface CognitiveState {
@@ -107,6 +108,7 @@ export interface PlannerRecord {
   provider?: string
   model?: string
   contextAnchor?: string
+  decisionSource?: 'local' | 'ai'
 }
 
 export interface ReflectionSummary {
@@ -155,6 +157,7 @@ export interface SessionDraft {
 }
 
 export type AiEventPhase =
+  | 'dialogue_decision'
   | 'response_analysis'
   | 'question_generation'
   | 'fallback'
@@ -184,6 +187,8 @@ export interface AiRuntimeSnapshot {
   model?: string
   lastCheckedAt?: number
   lastError?: string
+  status?: 'ready' | 'failed' | 'local'
+  lastErrorCode?: string
 }
 
 export interface ThinkingSession {
@@ -207,4 +212,7 @@ export interface ThinkingSession {
   pendingResponseId?: string
   verification?: VerificationPlan
   origin?: { sessionId: string; question: string }
+  communitySource?: { cardId: string; question: string; authorName: string }
+  publishedCards?: Array<{ cardId: string; createdAt: number }>
+  dialogueMode?: 'ai' | 'local'
 }

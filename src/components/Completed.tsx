@@ -1,16 +1,33 @@
-import { ArrowRight, Check, Download } from 'lucide-react'
+import { ArrowRight, Check, Download, Network, AlignLeft } from 'lucide-react'
+import { useState } from 'react'
 import { downloadSessionJson, downloadSessionMarkdown } from '../lib/export'
 import type { ThinkingSession } from '../lib/types'
 import { ProcessTrail } from './ProcessTrail'
 import { SavedTrace } from './SavedTrace'
 import { VerificationReview } from './VerificationReview'
+import { ResultMindMap } from './ResultMindMap'
 
-export function Completed({ session, onChange, onNew, onHistory }: { session: ThinkingSession; onChange: (session: ThinkingSession) => void; onNew: () => void; onHistory: () => void }) {
+export function Completed({ session, onChange, onNew, onHistory, onShare, onOpenCard }: { session: ThinkingSession; onChange: (session: ThinkingSession) => void; onNew: () => void; onHistory: () => void; onShare: () => void; onOpenCard?: (id: string) => void }) {
+  const [view, setView] = useState<'text' | 'map'>('text')
   return (
-    <main className="completed-shell completed-wide">
+    <main className={'completed-shell completed-wide' + (view === 'map' ? ' result-map-wide' : '')}>
       <div className="completed-mark"><Check size={18} /></div>
       <p className="eyebrow">这次思考已经完整保存</p>
       <h1>{session.question}</h1>
+
+      {onOpenCard && (session.communitySource || session.publishedCards?.length) && <section className="completed-community-links" aria-label="这次思考在社区的路径">
+        <p className="eyebrow">把这次思考放回它的来路</p>
+        {session.communitySource && <p>从 {session.communitySource.authorName} 分享的问题开始，最后留下的是你自己的判断。</p>}
+        <div className="card-tools">
+          {session.communitySource && <button className="text-action" onClick={() => onOpenCard(session.communitySource!.cardId)}>查看来源与其他分支 ↗</button>}
+          {session.publishedCards?.slice(0, 3).map((item, index) => <button key={item.cardId} className="text-action" onClick={() => onOpenCard(item.cardId)}>{index === 0 ? '查看我分享的这次成果' : '查看此前分享的副本'} ↗</button>)}
+        </div>
+        <small>分享状态以卡片页面为准，私人思考继续保留在这里。</small>
+      </section>}
+
+      <div className="result-view-switch" role="group" aria-label="成果查看方式"><button aria-pressed={view === 'text'} onClick={() => setView('text')}><AlignLeft size={16} />文字成果</button><button aria-pressed={view === 'map'} onClick={() => setView('map')}><Network size={16} />思维导图</button></div>
+
+      {view === 'map' ? <ResultMindMap session={session} /> : <>
 
       {session.summary?.initialJudgment && <section className="completed-change"><span>开始时，我这样想</span><p>{session.summary.initialJudgment}</p></section>}
 
@@ -35,8 +52,10 @@ export function Completed({ session, onChange, onNew, onHistory }: { session: Th
           <p>{session.summary.keyTurningPoint}</p>
         </section>
       )}
+      </>}
 
       <div className="archive-actions">
+        <button className="primary-action" onClick={onShare}>选择成果，分享思考卡 ↗</button>
         <button className="secondary-action" onClick={() => downloadSessionMarkdown(session)}>
           <Download size={15} />
           导出全过程 · Markdown

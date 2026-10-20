@@ -6,7 +6,7 @@ export function ProcessTrail({ session, defaultOpen = false }: { session: Thinki
     <details className="process-trail" open={defaultOpen || undefined}>
       <summary>
         <span>认知路径</span>
-        <small>{session.plannerRecords.length} 次策略选择 · {session.aiEvents.length} 条模型/回退记录 · 全过程已保存</small>
+        <small>{session.plannerRecords.length} 次策略选择 · {session.aiEvents.length} 条运行记录 · 全过程已保存</small>
       </summary>
 
       <div className="process-content">
@@ -15,10 +15,10 @@ export function ProcessTrail({ session, defaultOpen = false }: { session: Thinki
           <h3>{cognitiveTypeLabel[session.cognitiveType]}</h3>
           <p>{session.diagnosisReason}</p>
           <p className="process-runtime">
-            当前运行：{session.aiRuntime.mode === 'hybrid' && session.aiRuntime.provider
+            当前运行：{session.aiRuntime.status === 'failed' ? 'AI 本轮未完成' : session.aiRuntime.status === 'ready' && session.aiRuntime.provider
               ? `${session.aiRuntime.provider}${session.aiRuntime.model ? ` · ${session.aiRuntime.model}` : ''}`
-              : '本地认知引擎'}
-            {session.aiRuntime.lastError ? ' · 最近一次真实模型调用已自动回退' : ''}
+              : session.dialogueMode === 'local' ? '本地提纲' : '旧版记录，尚未验证新版 AI 参与'}
+            {session.aiRuntime.lastError ? (session.dialogueMode === 'ai' ? ' · 本轮 AI 未完成，原话已保留' : ' · 旧记录曾使用本地回退') : ''}
           </p>
         </section>
 
@@ -30,7 +30,7 @@ export function ProcessTrail({ session, defaultOpen = false }: { session: Thinki
               const analysis = record.sourceResponseId
                 ? session.analyses.find((item) => item.responseId === record.sourceResponseId)
                 : undefined
-              const questionEvent = session.aiEvents.find((event) => event.phase === 'question_generation' && event.move === record.chosenMove && event.turn === record.turn - 1)
+              const questionEvent = session.aiEvents.find((event) => event.phase === 'dialogue_decision' ? event.structured?.questionId === record.questionId : event.phase === 'question_generation' && event.move === record.chosenMove && event.turn === record.turn - 1)
               return (
                 <li key={record.id}>
                   <div className="process-turn">第 {record.turn} 次介入</div>
@@ -41,6 +41,7 @@ export function ProcessTrail({ session, defaultOpen = false }: { session: Thinki
                     </div>
                   )}
                   <dl>
+                    <div><dt>这一步由谁选择</dt><dd>{record.decisionSource === 'ai' ? 'AI 根据对话理解自主选择，本地只做约束检查' : '本地规则（旧版记录或主动选择的本地提纲）'}</dd></div>
                     <div>
                       <dt>当时聚焦</dt>
                       <dd>{record.focusExcerpt}</dd>
@@ -82,12 +83,12 @@ export function ProcessTrail({ session, defaultOpen = false }: { session: Thinki
 
         {session.aiEvents.length > 0 && (
           <details className="ai-event-log">
-            <summary>模型调用与自动回退记录</summary>
+            <summary>模型调用与运行记录</summary>
             <ol>
               {session.aiEvents.map((event) => (
                 <li key={event.id}>
                   <div className="ai-event-meta">
-                    <span>{event.phase === 'response_analysis' ? '认知分析' : event.phase === 'question_generation' ? '问题生成' : event.status === 'fallback' ? '自动回退' : '调用异常'}</span>
+                    <span>{event.phase === 'dialogue_decision' ? 'AI 理解、决策与回应' : event.phase === 'response_analysis' ? '认知分析' : event.phase === 'question_generation' ? '问题生成' : event.status === 'fallback' ? (session.dialogueMode === 'local' ? '本地提纲' : '旧版回退') : '调用异常'}</span>
                     <span>{event.provider} · {event.model}</span>
                     {event.latencyMs != null && <span>{event.latencyMs} ms</span>}
                   </div>
@@ -96,7 +97,7 @@ export function ProcessTrail({ session, defaultOpen = false }: { session: Thinki
                 </li>
               ))}
             </ol>
-            <p className="ai-log-note">这里只保存可审计的结构化输出、策略选择和调用状态；不会请求或保存模型的隐藏思维链。</p>
+            <p className="ai-log-note">这里只保存可审计的结构化输出、策略选择和调用状态；不展示或保存模型的隐藏推理。</p>
           </details>
         )}
       </div>

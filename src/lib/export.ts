@@ -12,13 +12,14 @@ export function sessionToMarkdown(session: ThinkingSession) {
     `- 创建时间：${time(session.createdAt)}`,
     `- 认知类型：${cognitiveTypeLabel[session.cognitiveType]}`,
     `- 诊断说明：${session.diagnosisReason}`,
-    `- 运行模式：${session.aiRuntime.mode === 'hybrid' ? `真实 AI + 本地认知引擎（${session.aiRuntime.provider ?? 'unknown'} / ${session.aiRuntime.model ?? 'unknown'}）` : '本地认知引擎'}`,
+    `- 运行模式：${session.dialogueMode === 'ai' && session.aiRuntime.status === 'ready' ? `AI 参与理解与决策（${session.aiRuntime.provider ?? ''} / ${session.aiRuntime.model ?? ''}）` : session.aiRuntime.mode === 'hybrid' ? '含真实模型调用记录，当前状态请查看运行日志' : '本地提纲'}`,
     '',
     '## 完整思考与回答',
     '',
   ]
 
   if (session.origin) lines.splice(6, 0, `- 从另一个问题岔开：${session.origin.question}`, `- 原思考记录：${session.origin.sessionId}`)
+  if (session.communitySource) lines.splice(6, 0, `- 接续自思考卡：${session.communitySource.cardId}`, `- 来源作者：${session.communitySource.authorName}`, `- 来源问题：${session.communitySource.question}`)
 
   session.trace.forEach((item, index) => {
     if (item.kind === 'question') {
@@ -57,6 +58,7 @@ export function sessionToMarkdown(session: ThinkingSession) {
         `- 为什么此刻这样问：${record.whyNow}`,
         `- 认知分析来源：${analysis?.source === 'ai' ? `真实模型 ${analysis.provider ?? ''} / ${analysis.model ?? ''}` : analysis ? '本地结构化分析' : '首次介入'}`,
         `- 问题生成来源：${record.generationSource === 'ai' ? `真实模型 ${record.provider ?? ''} / ${record.model ?? ''}` : '本地问题生成器'}`,
+        `- 决策来源：${record.decisionSource === 'ai' ? 'AI 根据对话选择下一步' : '本地规则'}`,
       )
       if (record.contextAnchor) lines.push(`- 上下文锚点：${record.contextAnchor}`)
       if (record.observations.length > 0) {

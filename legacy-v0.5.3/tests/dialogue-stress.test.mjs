@@ -133,3 +133,4 @@ test('撤回支持理由会从当前判断中去掉已撤回理由；撤回整�
   assert.ok(!position.cognitiveState.completedMoves.includes('state_position'))
   assert.equal(latestQuestion(position).move, 'state_position')
 })
+

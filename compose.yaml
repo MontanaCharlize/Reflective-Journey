@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4173:4173"
+    env_file:
+      - .env.production
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4173
+      COMMUNITY_DB_PATH: /app/data/community.sqlite
+      AI_ALLOW_LOCAL_GUEST: "false"
+    volumes:
+      - community-data:/app/data
+volumes:
+  community-data:

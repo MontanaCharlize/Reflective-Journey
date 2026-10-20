@@ -1,0 +1,24 @@
+name: 问题反馈
+description: 用一个可复现的例子描述问题
+body:
+  - type: markdown
+    attributes:
+      value: 请用虚构内容复现。不要贴 API Key、数据库、私人笔记或完整个人对话。
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎样出现
+      description: 使用的是源码包还是运行包，在哪个页面，做了哪些操作？
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 实际结果与期待结果
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 版本与环境
+      placeholder: 例如 V0.10.0 / Windows / Edge / Node 24.13.1

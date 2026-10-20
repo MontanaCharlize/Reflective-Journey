@@ -3,9 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f7f3" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F7F6F2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171916" />
     <meta name="description" content="反思之旅：从你的问题出发，帮助你更好地完成思考。" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>反思之旅</title>
+    <script>
+      try {
+        var t = localStorage.getItem('rj-theme')
+        if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

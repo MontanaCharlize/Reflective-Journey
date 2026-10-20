@@ -1,0 +1,27 @@
+[Unit]
+Description=Reflective Journey
+After=network.target
+
+[Service]
+Type=simple
+User=rjapp
+Group=rjapp
+WorkingDirectory=/opt/reflective-journey
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=4173
+Environment=COMMUNITY_DB_PATH=/var/lib/reflective-journey/community.sqlite
+EnvironmentFile=/etc/reflective-journey.env
+ExecStart=/usr/bin/node server/serve.mjs
+Restart=on-failure
+RestartSec=3
+StateDirectory=reflective-journey
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/reflective-journey
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

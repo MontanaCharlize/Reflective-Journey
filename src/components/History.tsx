@@ -6,11 +6,13 @@ export function History({
   onOpen,
   onDelete,
   onNew,
+  onOpenCard,
 }: {
   sessions: ThinkingSession[]
   onOpen: (session: ThinkingSession) => void
   onDelete: (id: string) => void
   onNew: () => void
+  onOpenCard?: (id: string) => void
 }) {
   return (
     <main className="history-shell">
@@ -33,7 +35,7 @@ export function History({
             const userTurns = session.trace.filter((item) => item.kind === 'user').length
             return (
               <article className="history-row" key={session.id}>
-                <button className="history-main" onClick={() => onOpen(session)}>
+                <div className="history-content"><button className="history-main" onClick={() => onOpen(session)}>
                   <span className="history-question">{session.question}</span>
                   <span className="history-meta">
                     {new Date(session.updatedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -44,6 +46,8 @@ export function History({
                   </span>
                   {session.summary?.currentJudgment && <span className="history-summary">{session.summary.currentJudgment}</span>}
                 </button>
+                {onOpenCard && <div className="history-community-links">{session.communitySource && <button className="text-action" onClick={() => onOpenCard(session.communitySource!.cardId)}>回到来源问题 ↗</button>}{session.publishedCards?.[0] && <button className="text-action" onClick={() => onOpenCard(session.publishedCards![0].cardId)}>查看我的分享 ↗</button>}</div>}
+                </div>
                 <button className="delete-action" onClick={() => onDelete(session.id)} aria-label="删除记录"><Trash2 size={16} /></button>
               </article>
             )

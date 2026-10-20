@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createIdleCheckIn, hasOfferedCheckIn, loadCheckInEnabled, markCheckInOffered, recordEditing, rememberCheckIn, saveCheckInEnabled, shouldOfferCheckIn } from '../lib/idle-checkin'
 import { appendQuickNote } from '../lib/quick-notes'
+import { appendDictation, isVoiceInputActive, VOICE_ACTIVITY } from '../lib/voice-input'
+import { VoiceInput } from './VoiceInput'
 
 export function IdleCheckIn({ questionId, question, enabled, thought, onThoughtChange, onUseThought, onHint, onBranch }: {
   questionId: string
@@ -16,6 +18,9 @@ export function IdleCheckIn({ questionId, question, enabled, thought, onThoughtC
   const [show, setShow] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
   const [branching, setBranching] = useState(false)
+  const [dictating, setDictating] = useState(false)
+  const thoughtRef = useRef(thought)
+  thoughtRef.current = thought
   const [error, setError] = useState('')
   const clock = useRef({ ...createIdleCheckIn(questionId, Date.now()), offered: hasOfferedCheckIn(questionId) })
   const composing = useRef(false)
@@ -43,21 +48,21 @@ export function IdleCheckIn({ questionId, question, enabled, thought, onThoughtC
     const beginComposition = (event: Event) => { composing.current = true; activity(event) }
     const endComposition = (event: Event) => { composing.current = false; activity(event) }
     const check = () => {
-      if (shouldOfferCheckIn(clock.current, Date.now(), { enabled: true, visible: document.visibilityState === 'visible', composing: composing.current })) {
+      if (shouldOfferCheckIn(clock.current, Date.now(), { enabled: true, visible: document.visibilityState === 'visible', composing: composing.current || isVoiceInputActive() })) {
         clock.current = markCheckInOffered(clock.current)
         try { rememberCheckIn(questionId) } catch (failure) { setError(failure instanceof Error ? failure.message : '询问记录暂未保存。') }
         setShow(true)
       }
     }
     const timer = window.setInterval(check, 1000)
-    for (const type of ['input', 'keydown', 'pointerdown', 'focusin']) document.addEventListener(type, activity, true)
+    for (const type of ['input', 'keydown', 'pointerdown', 'focusin', VOICE_ACTIVITY]) document.addEventListener(type, activity, true)
     document.addEventListener('compositionstart', beginComposition, true)
     document.addEventListener('compositionend', endComposition, true)
     document.addEventListener('visibilitychange', visibility)
     window.addEventListener('focus', visibility)
     return () => {
       window.clearInterval(timer)
-      for (const type of ['input', 'keydown', 'pointerdown', 'focusin']) document.removeEventListener(type, activity, true)
+      for (const type of ['input', 'keydown', 'pointerdown', 'focusin', VOICE_ACTIVITY]) document.removeEventListener(type, activity, true)
       document.removeEventListener('compositionstart', beginComposition, true)
       document.removeEventListener('compositionend', endComposition, true)
       document.removeEventListener('visibilitychange', visibility)
@@ -101,11 +106,12 @@ export function IdleCheckIn({ questionId, question, enabled, thought, onThoughtC
     </section>}
     {sideOpen && <section className="idle-side-thought" aria-label="此刻的想法">
       <label htmlFor="side-thought">此刻，什么吸引了你的注意？</label>
-      <textarea id="side-thought" rows={3} value={thought} disabled={branching} onChange={(event) => onThoughtChange(event.target.value)} placeholder="想到哪就先写到哪，不用急着回到原问题。" />
+      <textarea id="side-thought" rows={3} value={thought} disabled={branching} onChange={(event) => { thoughtRef.current = event.target.value; onThoughtChange(event.target.value) }} placeholder="想到哪就先写到哪，不用急着回到原问题。" />
+      <VoiceInput compact label="语音输入岔开的念头" disabled={branching} onActiveChange={setDictating} onText={(text) => { thoughtRef.current = appendDictation(thoughtRef.current, text); onThoughtChange(thoughtRef.current) }} />
       <div className="idle-options">
-        <button className="secondary-action" disabled={!thought.trim() || branching} onClick={() => { onUseThought(thought.trim()); dismiss() }}>放进回答，接着想</button>
-        <button className="text-action" disabled={!thought.trim() || branching} onClick={saveNote}>先放进随手记</button>
-        <button className="text-action" disabled={thought.trim().length < 4 || branching} onClick={() => void branch()}>{branching ? '正在打开新方向…' : '沿着这个想法继续'}</button>
+        <button className="secondary-action" disabled={!thought.trim() || branching || dictating} onClick={() => { onUseThought(thought.trim()); dismiss() }}>放进回答，接着想</button>
+        <button className="text-action" disabled={!thought.trim() || branching || dictating} onClick={saveNote}>先放进随手记</button>
+        <button className="text-action" disabled={thought.trim().length < 4 || branching || dictating} onClick={() => void branch()}>{branching ? '正在打开新方向…' : '沿着这个想法继续'}</button>
         <button className="text-action" disabled={branching} onClick={dismiss}>先回到原问题</button>
       </div>
       <small>新方向会另存一次思考，原问题和草稿仍然保留。</small>

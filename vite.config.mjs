@@ -1,29 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { createAiHandler } from './server/ai-handler.mjs'
+import { createApplication } from './server/application.mjs'
 import { loadProjectEnv } from './server/env.mjs'
 
-function aiApiPlugin() {
-  const env = loadProjectEnv(process.cwd())
-  const handler = createAiHandler(env)
-  const middleware = async (req, res, next) => {
-    const pathname = new URL(req.url || '/', 'http://localhost').pathname
-    if (!pathname.startsWith('/api/ai/')) return next()
-    const handled = await handler(req, res, pathname)
-    if (!handled && !res.writableEnded) next()
+function applicationApiPlugin() {
+  const install = (server) => {
+    const app = createApplication({ env: loadProjectEnv(process.cwd()) })
+    server.httpServer?.once('close', () => app.close())
+    server.middlewares.use((req, res, next) => {
+      app.handle(req, res).then((handled) => { if (!handled && !res.writableEnded) next() }).catch(next)
+    })
   }
-
   return {
-    name: 'reflective-journey-ai-api',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => { middleware(req, res, next).catch(next) })
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use((req, res, next) => { middleware(req, res, next).catch(next) })
-    },
+    name: 'reflective-journey-application-api',
+    configureServer: install,
+    configurePreviewServer: install,
   }
 }
 
 export default defineConfig({
-  plugins: [react(), aiApiPlugin()],
+  plugins: [react(), applicationApiPlugin()],
 })

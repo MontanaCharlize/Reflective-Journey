@@ -81,10 +81,12 @@ test('不知道时保持原动作，降低问题难度，不虚构进展', () =>
   assert.deepEqual(session.cognitiveState.completedMoves, [])
 })
 
-test('六轮仍卡住时，不强制整合判断', () => {
+test('本地模式六轮卡住时不强制整合，也不一直重复索要立场', () => {
   let session = engine.createSession('AI 会不会让大学生越来越不会思考？')
   for (let round = 0; round < 6; round++) session = engine.appendUserResponse(session, '我还不知道')
-  assert.equal(session.trace.at(-1).move, 'state_position')
+  assert.notEqual(session.trace.at(-1).move, 'synthesize')
+  assert.ok(!session.cognitiveState.completedMoves.includes('state_position'))
+  assert.ok(new Set(session.trace.filter((item) => item.move).map((item) => item.move)).size > 1)
 })
 
 test('回答给出立场和机制后，才推进到下一项缺失动作', () => {
