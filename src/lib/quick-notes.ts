@@ -1,8 +1,9 @@
+import { workspaceKey } from './workspace'
+
 export interface NoteLayout { x: number; y: number; width: number; height: number }
 export interface NoteViewport { width: number; height: number }
 export interface QuickNote { text: string; open: boolean; layout: NoteLayout; updatedAt: number }
 
-const KEY = 'reflective-journey/v0.5/quick-note'
 export const NOTES_CHANGED = 'reflective-journey:notes-changed'
 export const NOTES_OPEN = 'reflective-journey:notes-open'
 const finite = (value: unknown, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -31,7 +32,7 @@ export function noteViewport(): NoteViewport {
 export function loadQuickNote(viewport: NoteViewport): QuickNote {
   const fallback = defaultQuickNote(viewport)
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || 'null')
+    const raw = JSON.parse(localStorage.getItem(workspaceKey('quick-note')) || 'null')
     if (!raw || typeof raw !== 'object') return fallback
     return {
       text: typeof raw.text === 'string' ? raw.text : '',
@@ -43,7 +44,7 @@ export function loadQuickNote(viewport: NoteViewport): QuickNote {
 }
 
 export function saveQuickNote(note: QuickNote) {
-  try { localStorage.setItem(KEY, JSON.stringify(note)) }
+  try { localStorage.setItem(workspaceKey('quick-note'), JSON.stringify(note)) }
   catch { throw new Error('随手记暂时无法保存，请保留当前页面或先导出笔记。') }
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event(NOTES_CHANGED))
 }

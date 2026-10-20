@@ -1,4 +1,5 @@
 import { configuredProviders, resolveProvider, callJsonModel } from './providers.mjs'
+import { generateDialogueTurn } from './dialogue-turn.mjs'
 
 const allowedMoves = new Set([
   'clarify_focus','state_position','specify_mechanism','surface_assumption','generate_alternative',
@@ -134,7 +135,6 @@ function questionSystem() {
 8. 如果最新回答显示用户卡住，保持当前动作，缩小问题或回到具体经历；不要机械重复上一问，也不要推动用户虚构观点变化。
 9. 新问题不能与最近已经问过的问题近似重复；必须增加一个新的、与 nextAction 一致的思考增量。
 10. originQuestion 如有值只是用户主动岔开前的背景。始终以当前 originalQuestion 为主，不强迫用户回到原方向。
-11. 如果 changedIdeas 中记录了“撤回/修正”，不要继续把对应旧理由、旧例子或旧判断当成仍然成立的前提来追问；应以用户保留下来的当前判断和最新表达为准。
 
 JSON 结构：
 {
@@ -293,7 +293,7 @@ async function arena(env, body, signal) {
   }
 }
 
-export function createAiHandler(env) {
+export function createAiHandler(env, hooks = {}) {
   return async function handle(req, res, pathname) {
     if (req.method === 'GET' && pathname === '/api/ai/providers') {
       const providers = configuredProviders(env)
@@ -302,26 +302,36 @@ export function createAiHandler(env) {
         ok: true,
         activeProvider: active?.id || null,
         providers: providers.map((p) => ({ id: p.id, label: p.label, model: p.model, configured: true })),
-        localFallback: true,
+        localFallback: false,
+        localOutline: true,
+        planning: 'ai-participatory',
+        access: hooks.access?.(req) || { canUseAi: Boolean(active), loginRequired: false, localGuest: false },
       })
     }
 
-    if (req.method !== 'POST' || !['/api/ai/analyze', '/api/ai/question', '/api/ai/arena'].includes(pathname)) return false
+    if (req.method !== 'POST' || !['/api/ai/analyze', '/api/ai/question', '/api/ai/arena', '/api/ai/turn', '/api/ai/check'].includes(pathname)) return false
     const controller = new AbortController()
     const abort = () => { if (!res.writableEnded) controller.abort() }
     res.once('close', abort)
     try {
       const body = await readBody(req)
       if (!body || typeof body !== 'object' || Array.isArray(body)) return sendJson(res, 400, { ok: false, code: 'BAD_REQUEST', message: '请求需要一个 JSON 对象。' })
+      if (pathname === '/api/ai/turn') return sendJson(res, 200, await generateDialogueTurn(env, body, controller.signal, () => hooks.reserveExtra?.(req)))
+      if (pathname === '/api/ai/check') {
+        const provider = resolveProvider(env, body.provider)
+        if (!provider) return sendJson(res, 200, { ok: false, code: 'NO_PROVIDER', message: '没有连接可用的模型。' })
+        const result = await callJsonModel(provider, { system: 'Return JSON only: {"ok":true}.', user: 'Synthetic connection check. Return JSON.', maxTokens: 128, signal: controller.signal })
+        return sendJson(res, 200, { ok: result.data?.ok === true, provider: result.provider, model: result.model, latencyMs: result.latencyMs })
+      }
       if (pathname === '/api/ai/analyze') return sendJson(res, 200, await analyze(env, body, controller.signal))
       if (pathname === '/api/ai/question') return sendJson(res, 200, await question(env, body, controller.signal))
       if (pathname === '/api/ai/arena') return sendJson(res, 200, await arena(env, body, controller.signal))
     } catch (error) {
       if (controller.signal.aborted || res.destroyed) return true
       const badRequest = error?.message === '请求 JSON 无效'
-      return sendJson(res, badRequest ? 400 : 200, {
+      return sendJson(res, error?.status || (badRequest ? 400 : 200), {
         ok: false,
-        code: badRequest ? 'BAD_REQUEST' : 'AI_ERROR',
+        code: error?.code || (badRequest ? 'BAD_REQUEST' : 'AI_ERROR'),
         message: error instanceof Error ? error.message : String(error),
       })
     } finally {

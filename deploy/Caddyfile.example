@@ -1,0 +1,12 @@
+# Set APP_ORIGIN=https://your-domain.example and COOKIE_SECURE=true on the app.
+your-domain.example {
+    request_body {
+        max_size 2MB
+    }
+    reverse_proxy 127.0.0.1:4173
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        -Server
+    }
+}

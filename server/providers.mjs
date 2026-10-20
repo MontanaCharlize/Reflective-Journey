@@ -9,6 +9,7 @@ export function providerCatalog(env) {
       apiKey: env.DEEPSEEK_API_KEY || '',
       model: env.DEEPSEEK_MODEL || 'deepseek-flash',
       jsonMode: true,
+      thinkingMode: env.DEEPSEEK_THINKING_MODE === 'enabled' ? 'enabled' : 'disabled',
     },
     openai: {
       id: 'openai',
@@ -81,12 +82,16 @@ export async function callJsonModel(provider, { system, user, maxTokens = 1200, 
     max_tokens: maxTokens,
   }
   if (provider.jsonMode) body.response_format = { type: 'json_object' }
+  if (provider.id === 'deepseek') {
+    body.thinking = { type: provider.thinkingMode || 'disabled' }
+    if (provider.thinkingMode === 'enabled') { body.reasoning_effort = 'low'; body.max_tokens = Math.max(maxTokens, 6000) }
+  }
 
   const controller = new AbortController()
   const abort = () => controller.abort()
   if (signal?.aborted) controller.abort()
   signal?.addEventListener('abort', abort, { once: true })
-  const timer = setTimeout(abort, 20_000)
+  const timer = setTimeout(abort, provider.thinkingMode === 'enabled' ? 45000 : 25000)
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -102,11 +107,16 @@ export async function callJsonModel(provider, { system, user, maxTokens = 1200, 
     let payload
     try { payload = JSON.parse(raw) } catch { payload = null }
     if (!response.ok) {
-      const message = payload?.error?.message || payload?.message || raw.slice(0, 500) || `HTTP ${response.status}`
-      throw new Error(`${provider.label} API 调用失败：${message}`)
+      const unsafeMessage = payload?.error?.message || payload?.message || raw.slice(0, 500) || `HTTP ${response.status}`
+      const message = provider.apiKey ? String(unsafeMessage).replaceAll(provider.apiKey, '[已隐藏]') : String(unsafeMessage)
+      const error = new Error(`${provider.label} API 调用失败：${message}`)
+      error.code = response.status === 401 || response.status === 403 ? 'AI_PROVIDER_AUTH' : response.status === 429 ? 'AI_PROVIDER_RATE_LIMIT' : 'AI_PROVIDER_ERROR'
+      throw error
     }
 
-    const message = payload?.choices?.[0]?.message
+    const choice = payload?.choices?.[0]
+    if (choice?.finish_reason === 'length') { const error = new Error('模型输出达到长度上限，本轮未展示不完整的回应。请重试或检查思考模式与输出额度。'); error.code = 'MODEL_OUTPUT_TRUNCATED'; throw error }
+    const message = choice?.message
     // 只读取用户可见的 content，不读取或保存 reasoning_content。
     let content = message?.content
     if (Array.isArray(content)) content = content.map((part) => part?.text || part?.content || '').join('')
@@ -116,7 +126,13 @@ export async function callJsonModel(provider, { system, user, maxTokens = 1200, 
       latencyMs: Date.now() - started,
       provider: provider.id,
       model: provider.model,
+      usage: payload?.usage ? { inputTokens: payload.usage.prompt_tokens, outputTokens: payload.usage.completion_tokens, totalTokens: payload.usage.total_tokens } : undefined,
     }
+  } catch (error) {
+    if (signal?.aborted) throw error
+    if (error.cause?.code === 'EACCES' || error.cause?.code === 'EPERM') { const denied = new Error('启动 AI 服务的环境禁止访问外网，请从正常终端启动服务或检查运行环境的网络权限。'); denied.code = 'AI_NETWORK_BLOCKED'; throw denied }
+    if (controller.signal.aborted) { const timeout = new Error('模型回应超时，请稍后重试；本轮没有自动改用模板。'); timeout.code = 'AI_TIMEOUT'; throw timeout }
+    throw error
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener('abort', abort)

@@ -1,11 +1,10 @@
 import { analyzeResponse, emptyState as engineEmptyState } from './engine'
 import type { CognitiveState, SessionDraft, ThinkingSession, TraceItem } from './types'
+import { getWorkspaceOwner, workspaceKey } from './workspace'
 
-const KEY = 'reflective-journey/v0.5/sessions'
 const V04_KEY = 'reflective-journey/v0.4/sessions'
 const V03_KEY = 'reflective-journey/v0.3/sessions'
 const V02_KEY = 'reflective-journey/v0.2/sessions'
-const DRAFT_KEY = 'reflective-journey/v0.5/drafts'
 
 interface LegacySessionV2 {
   id: string
@@ -107,9 +106,11 @@ function read<T>(key: string): T | null {
   }
 }
 
-export function loadSessions(): ThinkingSession[] {
+export function loadSessions(owner: string | null = getWorkspaceOwner()): ThinkingSession[] {
+  const KEY = workspaceKey('sessions', owner)
   const current = read<ThinkingSession[]>(KEY)
   if (Array.isArray(current)) return [...current].sort((a, b) => b.updatedAt - a.updatedAt)
+  if (owner) return []
 
   const v4 = read<LegacySessionV4[]>(V04_KEY)
   if (Array.isArray(v4)) {
@@ -136,18 +137,18 @@ export function getSession(id: string) {
   return loadSessions().find((item) => item.id === id)
 }
 
-export function saveSession(session: ThinkingSession) {
-  const all = loadSessions()
+export function saveSession(session: ThinkingSession, owner: string | null = getWorkspaceOwner()) {
+  const all = loadSessions(owner)
   const next = { ...session, updatedAt: Date.now() }
   const index = all.findIndex((item) => item.id === next.id)
   if (index >= 0) all[index] = next
   else all.unshift(next)
-  write(KEY, all)
+  write(workspaceKey('sessions', owner), all)
   return next
 }
 
 export function deleteSession(id: string) {
-  write(KEY, loadSessions().filter((item) => item.id !== id))
+  write(workspaceKey('sessions'), loadSessions().filter((item) => item.id !== id))
   clearDraft(id)
 }
 
@@ -161,16 +162,30 @@ export function emptyDraft(): SessionDraft {
 }
 
 export function loadDraft(id: string): SessionDraft {
-  return { ...emptyDraft(), ...(read<Record<string, SessionDraft>>(DRAFT_KEY)?.[id] || {}) }
+  return { ...emptyDraft(), ...(read<Record<string, SessionDraft>>(workspaceKey('drafts'))?.[id] || {}) }
 }
 
 export function saveDraft(id: string, draft: SessionDraft) {
-  const all = read<Record<string, SessionDraft>>(DRAFT_KEY) || {}
-  write(DRAFT_KEY, { ...all, [id]: draft })
+  const all = read<Record<string, SessionDraft>>(workspaceKey('drafts')) || {}
+  write(workspaceKey('drafts'), { ...all, [id]: draft })
 }
 
 export function clearDraft(id: string) {
-  const all = read<Record<string, SessionDraft>>(DRAFT_KEY) || {}
+  const all = read<Record<string, SessionDraft>>(workspaceKey('drafts')) || {}
   delete all[id]
-  write(DRAFT_KEY, all)
+  write(workspaceKey('drafts'), all)
+}
+
+export function importGuestSessions(ids: string[]) {
+  const owner = getWorkspaceOwner()
+  if (!owner) throw new Error('请先登录，再选择带入的访客记录。')
+  const own = loadSessions(owner)
+  const existing = new Set(own.map((session) => session.id))
+  const incoming = loadSessions(null).filter((session) => ids.includes(session.id) && !existing.has(session.id))
+  const guestDrafts = read<Record<string, SessionDraft>>(workspaceKey('drafts', null)) || {}
+  const drafts = read<Record<string, SessionDraft>>(workspaceKey('drafts', owner)) || {}
+  for (const session of incoming) if (guestDrafts[session.id]) drafts[session.id] = guestDrafts[session.id]
+  write(workspaceKey('drafts', owner), drafts)
+  write(workspaceKey('sessions', owner), [...incoming, ...own])
+  return incoming.length
 }

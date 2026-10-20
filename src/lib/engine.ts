@@ -46,7 +46,7 @@ export function classifyQuestion(raw: string): CognitiveType {
   if (/怎么做|如何做|怎么算|证明|报错|题目|这题|这道题|代码|求解|怎么解/.test(q)) return 'problem'
   if (/是什么|什么叫|什么意思|怎么理解|区别|本质|概念|定义/.test(q)) return 'concept'
   if (/会不会.*(?:让|导致|造成|影响)|是否.*(?:导致|造成|影响)|为什么|原因|导致|造成|怎么会|为何|影响/.test(q)) return 'causal'
-  if (/怎么看|如何看|是否公平|公平吗|公不公平|公平不公平|对不对|争议|观点|立场|应该如何评价/.test(q)) return 'perspective'
+  if (/怎么看|如何看|是否公平|对不对|争议|观点|立场|应该如何评价/.test(q)) return 'perspective'
   return 'exploratory'
 }
 
@@ -150,7 +150,7 @@ function extractFocus(text: string) {
 }
 
 function hasSpecificScene(text: string) {
-  return /最近一次|最近有一次|上次|昨天|前天|今天|当时|那次|有一次|上周|本周|周[一二三四五六日天]|星期[一二三四五六日天]|(?:去年|今年|上个月|这个月).{0,16}(?:时|时候|发生)|在.{1,36}的时候|场景|发生/.test(text)
+  return /最近|上次|昨天|今天|当时|那次|有一次|在.+的时候|场景|发生/.test(text)
 }
 
 function hasInabilitySignal(text: string) {
@@ -159,17 +159,8 @@ function hasInabilitySignal(text: string) {
 
 function hasExplicitPosition(text: string) {
   const compact = text.replace(/\s+/g, '')
-  return /(?:我(?:现在|目前|暂时|还是|更)*(?:觉得|认为|倾向|猜|相信|怀疑|支持|反对|同意|不同意)|我(?:现在|目前|暂时|还是)*会说|我(?:现在|目前|暂时|还是)*(?:不会|不太会)(?:直接)?(?:相信|接受|支持|认同)|我的理解是|我理解为|我的判断是|我(?:会|不会)选|我赞成|我反对|暂时无法判断|还不能判断|没有形成判断|还没有形成判断)/.test(compact)
-    || /^(?:会|不会|相信|怀疑|支持|反对|同意|不同意|取决于|看情况|要看|不一定|未必|可能会|应该|不应该)/.test(compact)
-}
-
-function hasGlobalPositionUpdate(text: string, promptedMove?: CognitiveMove, cognitiveType?: CognitiveType) {
-  const compact = text.replace(/\s+/g, '')
-  if (promptedMove === 'state_position') return hasExplicitPosition(text) || (cognitiveType === 'decision' && isShortDecisionChoice(text))
-  if (promptedMove === 'synthesize') return hasExplicitPosition(text) || (cognitiveType === 'decision' && isShortDecisionChoice(text))
-  // 局部追问里出现“我觉得”不一定是在修改原问题的总体判断，例如“如果……我还是觉得……”。
-  // 只有明显从整句开头重述/修订总体判断时才允许覆盖 currentPosition。
-  return /^(?:我(?:现在|目前)(?:还是)?(?:觉得|认为|倾向)|我的判断是|我刚才那个判断|我改成|换句话说|我的理解现在是)/.test(compact)
+  return /(?:我(?:现在|目前|暂时|还是|仍|更)?(?:觉得|认为|倾向|猜|相信|怀疑|支持|反对|同意|不同意)|我的(?:理解|选择|判断|决定|倾向)是|我理解为|我(?:会|不会)选|我赞成|我反对|暂时无法判断|还不能判断|没有形成判断|还没有形成判断)/.test(compact)
+    || /^(?:会|不会|要(?:使用|用)|不(?:使用|用)|相信|怀疑|支持|反对|同意|不同意|取决于|看情况|要看|不一定|未必|可能会|应该|不应该)/.test(compact)
 }
 
 function hasSubstantiveContrast(text: string) {
@@ -215,40 +206,10 @@ function hasRetractionSignal(text: string) {
   return /(?:前面|刚才|之前)(?:我)?(?:说|提到|举的|那个).{0,36}(?:不对|不准确|不成立|不能说明|不算|撤回|说早了)|(?:这个|那个|刚才的|前面的).{0,20}(?:例子|理由|依据|判断).{0,12}(?:不能说明|不成立|不准确|不算|要撤回)/.test(text)
 }
 
-function retractionScope(text: string): 'position' | 'support' | null {
-  if (!hasRetractionSignal(text)) return null
-  if (/(?:判断|结论|观点|说法).{0,16}(?:不对|不准确|不成立|撤回|说早了)|撤回.{0,8}(?:判断|结论|观点|说法)/.test(text)) return 'position'
-  if (/(?:例子|理由|依据|证据|原因).{0,16}(?:不能说明|不成立|不准确|不算|撤回)|撤回.{0,8}(?:例子|理由|依据|证据|原因)/.test(text)) return 'support'
-  return null
-}
-
-function replacementPosition(text: string) {
-  const compact = text.replace(/\s+/g, ' ')
-  const match = compact.match(/(我(?:现在|目前)(?:还是)?(?:觉得|认为|倾向).*)/)
-  return match?.[1]?.trim() ?? ''
-}
-
-function stripRetractedSupport(position: string) {
-  const stripped = position.split(/因为|理由是|依据是/)[0]?.replace(/[，,；;：:]$/, '').trim() ?? ''
-  return stripped.length >= 2 ? stripped : position
-}
-
-function hasBoundarySignal(text: string) {
-  if (/除非.{2,}|取决于.{2,}|只有.{1,}才|在.{1,}情况下|只要.{1,}|(?:边界|例外|仅限于|只在).{1,}/.test(text)) return true
-  if (/反例|相反的例子/.test(text)) return false
-  if (!/如果.{1,80}(?:就|会|那么|但|却)/.test(text)) return false
-  // “如果看到数据/研究，我会重新考虑”是在定义证据，不是给原判断划边界。
-  return !/(?:看到|拿到|找到|有).{0,28}(?:数据|证据|研究|论文|报告|调查|实验|对照|统计|记录|结果)/.test(text)
-}
-
-function hasEvidenceSignal(text: string) {
-  return /数据|论文|统计|实验|调查|官方(?:数据|报告|公告)|原始(?:来源|论文|报告|数据)|研究(?:显示|发现|结果|数据|设计)|报告(?:显示|表明)|新闻|案例|例子|亲身(?:经历|体验)|对照(?:组|数据|实验|结果)|记录(?:显示|表明|数据)/.test(text)
-}
-
 function isShortDecisionChoice(text: string) {
   const compact = normalizeComparable(text)
-  if (!compact || compact.length > 18) return false
-  return /^(?:(?:暂时|目前|现在|先)?(?:不)?(?:参加|去|买|选|辞|换|留|读|考|继续|放弃|接受|拒绝|做|要|签|搬|投|申请|离开|留下)|选择?.+|选.+|a|b|第[一二两三四五六七八九1-9]个)$/.test(compact)
+  if (!compact || compact.length > 16) return false
+  return /^(?:不?参加|不?去|不?买|不?选|选择?.+|选.+|去|不去|买|不买|参加|不参加|接受|拒绝|继续|放弃|留下|离开|做|不做|要|不要|a|b|第[一二两三四五六七八九1-9]个)$/.test(compact)
 }
 
 function repeatedUserResponse(session: ThinkingSession, responseItem: TraceItem) {
@@ -264,7 +225,6 @@ function repeatedUserResponse(session: ThinkingSession, responseItem: TraceItem)
 export function isStuckResponse(text: string, promptedMove?: CognitiveMove) {
   const compact = text.replace(/[\s。！？!?，,.…]/g, '')
   if (promptedMove === 'state_position' && hasExplicitPosition(text)) return false
-  if (promptedMove === 'isolate_blocker' && /我卡在|不会的是|不明白的是|问题出在|报错在/.test(text)) return false
   if (hasSubstantiveContrast(text)) return false
   if (compact === '不会' && promptedMove === 'state_position') return false
   if (/^(?:我)?(?:也|还|暂时|真的|完全|有点)?(?:不知道|不清楚|不懂|不会|没想法|想不出来|说不清|记不清|好难|不确定|没有)(?:怎么(?:说|回答|想|做))?(?:啊|呢|了|呀|吧)?$/.test(compact)
@@ -282,31 +242,27 @@ function inferSatisfiedMoves(state: CognitiveState, latestText: string, prompted
   if (isStuckResponse(latestText, promptedMove)) return []
   const satisfied: CognitiveMove[] = []
   const unable = hasInabilitySignal(latestText)
-  const updatesPosition = hasGlobalPositionUpdate(latestText, promptedMove, cognitiveType)
-  if (updatesPosition) satisfied.push('state_position')
-  if (promptedMove === 'synthesize' && updatesPosition) satisfied.push('synthesize')
-  if (!unable && /也可能|另一种|除此之外|另一方面|还可能|未必只是|不只|或者(?:是)?因为|还有一种(?:解释|可能|原因|方案)/.test(latestText)) satisfied.push('generate_alternative')
-  if (!unable && hasBoundarySignal(latestText)) satisfied.push('test_boundary')
-  if (!unable && /我(?:最|更)?(?:看重|在乎|希望|想要)|我的(?:目标|底线)|不能接受|优先考虑/.test(latestText)) satisfied.push('define_criteria')
-  const strongMechanism = /通过.{1,48}(?:使得|导致|让)|因为.{1,48}所以|导致.{1,48}(?:进而|从而|于是)/.test(latestText)
-  const promptedMechanism = promptedMove === 'specify_mechanism' && /先.{1,30}再.{1,30}|(?:会|让|使).{1,36}(?:跳过|减少|增加|削弱|增强|形成|带来|造成|导致|让|使|依赖)|会.{1,36}(?:久了|然后|接着|从而|进而).{0,24}(?:会|更|变得)/.test(latestText)
-  if (!unable && (strongMechanism || promptedMechanism)) satisfied.push('specify_mechanism')
-  if (!unable && /(?:我(?:会|准备|打算)?(?:先)?(?:去)?(?:查|找|看|核对).{0,24}(?:原文|论文|期刊|官方|报告|网址|链接|作者|机构)|(?:来源|原文|报告|论文).{0,8}(?:是|来自|在|：|:))/.test(latestText)) satisfied.push('request_source')
-  if (!unable && /(?:例外(?:可能)?是|并不是每次|也有.{1,20}没有|有一次.{1,30}(?:却|反而))/.test(latestText)) satisfied.push('find_exception')
+  if (hasExplicitPosition(latestText) || (promptedMove === 'state_position' && cognitiveType === 'decision' && isShortDecisionChoice(latestText))) satisfied.push('state_position')
+  if (state.alternatives.length > 0) satisfied.push('generate_alternative')
+  if (state.boundaries.length > 0) satisfied.push('test_boundary')
+  if (state.goals.length > 0) satisfied.push('define_criteria')
+  if (!unable && /通过.{1,48}(?:使得|导致|让)|因为.{1,48}所以|导致.{1,48}(?:进而|从而|于是)|先.{1,30}再.{1,30}/.test(latestText)) satisfied.push('specify_mechanism')
+  if (!unable && /(?:我(?:会|准备|打算)?(?:去)?(?:查|找|看|核对).{0,20}(?:原文|论文|期刊|官方|报告|网址|链接|作者|机构)|(?:来源|原文|报告|论文).{0,8}(?:是|来自|在|：|:))/.test(latestText)) satisfied.push('request_source')
+  if (!unable && /(?:例外是|反例是|并不是每次|也有.{1,20}没有|有一次.{1,30}(?:却|反而))/.test(latestText)) satisfied.push('find_exception')
   if (!unable && hasSpecificScene(latestText)) satisfied.push('specific_example')
   if (!unable && /指的是|我的理解是|也就是说|可以理解为|本质上是/.test(latestText)) satisfied.push('clarify_concept')
-  if (/我卡在|不会的是|不明白的是|问题出在|报错在/.test(latestText)) satisfied.push('isolate_blocker')
+  if (!unable && /我卡在|不会的是|不明白的是|问题出在|报错在/.test(latestText)) satisfied.push('isolate_blocker')
   const completionSignals: Partial<Record<CognitiveMove, RegExp>> = {
-    clarify_focus: /我(?:最想|现在想|先想|先弄清|关注)|我.{0,5}想先弄清|重点是|具体想弄清/,
-    surface_assumption: /前提(?:是|为)|(?:我|这个|这里|定义|判断).{0,10}(?:假设|默认)|需要.{1,30}成立/,
-    seek_counterexample: /反例(?:可能)?(?:是|有)|相反的例子|有一次.{1,24}(?:却|反而)|并不是.{1,20}(?:都|总是)/,
-    request_evidence: /(?:如果|看到|需要|通过).{0,36}(?:数据|证据|调查|研究|论文|报告|来源|实验|对照|比较|统计|记录|结果)|我会(?:查|找|核对)/,
-    expose_tradeoff: /代价(?:是|在于)|要放弃|会失去|牺牲|成本(?:是|在于)|机会成本|(?:担心|害怕).{0,12}失去/,
+    clarify_focus: /我(?:最想|现在想|先想|先弄清|关注)|重点是|具体想弄清/,
+    surface_assumption: /前提(?:是|为)|我(?:假设|默认)|需要.{1,30}成立/,
+    seek_counterexample: /反例(?:是|有)|相反的例子|有一次.{1,24}(?:却|反而)|并不是.{1,20}(?:都|总是)/,
+    request_evidence: /(?:如果|看到|需要|通过).{0,24}(?:数据|证据|调查|实验|对照|比较|统计|记录)|我会(?:查|找|核对)/,
+    expose_tradeoff: /代价(?:是|在于)|要放弃|会失去|牺牲|成本(?:是|在于)|机会成本/,
     predict_next_step: /下一步(?:我|要|应该)|我会先|我准备先|我猜(?:要|会)|应该先/,
-    distinguish_fact_value: /事实(?:是|部分|层面)|价值(?:是|判断|偏好|层面)|这只是我的偏好|我认为.{0,16}应该/,
-    identify_trigger: /一(?!开始).{1,16}就|(?:看到|听到|想到|遇到|打开|准备).{0,24}(?:时|时候).{0,20}(?:就|开始)|当.{1,24}时|触发(?:点|是)|从.{1,16}开始/,
+    distinguish_fact_value: /事实(?:是|部分)|价值(?:是|判断|偏好)|这只是我的偏好|我认为.{0,16}应该/,
+    identify_trigger: /一.{1,16}就|当.{1,24}时|触发(?:点|是)|从.{1,16}开始/,
     formulate_test: /我(?:准备|会|想)试|我会(?:观察|记录|比较|验证)|下次.{0,24}(?:先|试|记录|观察)/,
-    synthesize: /我(?:现在|目前|暂时|还是|更)*(?:觉得|认为|倾向)|我(?:现在|目前|暂时|还是)*会说|我的判断是|取决于|暂时无法判断|还不能判断/,
+    synthesize: /我(?:现在|目前|还是)?(?:觉得|认为|倾向)|我的判断是|取决于|暂时无法判断|还不能判断/,
   }
   if (!unable && promptedMove && latestText.length >= 4 && completionSignals[promptedMove]?.test(latestText)) satisfied.push(promptedMove)
   return unique(satisfied) as CognitiveMove[]
@@ -358,27 +314,12 @@ export function analyzeResponse(session: ThinkingSession, responseItem: TraceIte
       completedMoveEvidence: [],
     }
   }
-  const isRetraction = hasRetractionSignal(text)
-  const scope = retractionScope(text)
-  const replacement = isRetraction ? replacementPosition(text) : ''
-  const updatesPosition = isRetraction ? Boolean(replacement) : hasGlobalPositionUpdate(text, promptedMove, session.cognitiveType)
-  const nextPosition = replacement
-    ? clip(replacement, 120)
-    : scope === 'position'
-      ? ''
-      : scope === 'support'
-        ? stripRetractedSupport(session.cognitiveState.currentPosition)
-        : updatesPosition
-          ? clip(text, 120)
-          : session.cognitiveState.currentPosition
+  const updatesPosition = hasExplicitPosition(text) || (promptedMove === 'state_position' && session.cognitiveType === 'decision' && isShortDecisionChoice(text)) || (promptedMove === 'synthesize' && !hasInabilitySignal(text) && text.length >= 4)
   let state: CognitiveState = {
     ...session.cognitiveState,
-    currentPosition: nextPosition,
-    focus: isRetraction ? (nextPosition || session.cognitiveState.focus || clip(session.question, 120)) : excerpt,
-    keyClaims: isRetraction ? session.cognitiveState.keyClaims : addUnique(session.cognitiveState.keyClaims, clip(text, 120)),
-    completedMoves: scope === 'position'
-      ? session.cognitiveState.completedMoves.filter((move) => move !== 'state_position' && move !== 'synthesize')
-      : session.cognitiveState.completedMoves,
+    currentPosition: updatesPosition ? clip(text, 120) : session.cognitiveState.currentPosition,
+    focus: excerpt,
+    keyClaims: addUnique(session.cognitiveState.keyClaims, clip(text, 120)),
   }
 
   const reason = extractReason(text)
@@ -397,31 +338,31 @@ export function analyzeResponse(session: ThinkingSession, responseItem: TraceIte
     observations.push('你的表述保留了余地，没有把这一点说成确定事实。')
   }
 
-  if (!isRetraction && !hasInabilitySignal(text) && hasEvidenceSignal(text)) {
+  if (!hasInabilitySignal(text) && /数据|研究|论文|来源|报告|统计|实验|新闻|案例|例子|亲身|看到|调查|官方/.test(text)) {
     signals.push('evidence_mentioned')
     observations.push('你已经提到了证据或来源线索，下一步可以检查它是否真的支持结论。')
     state = { ...state, evidenceSignals: addUnique(state.evidenceSignals, excerpt) }
   }
 
-  if (!isRetraction && !hasInabilitySignal(text) && /也可能|另一种|除此之外|另一方面|还可能|未必只是|不只|或者(?:是)?因为|还有一种(?:解释|可能|原因|方案)/.test(text)) {
+  if (!hasInabilitySignal(text) && /也可能|另一种|或者|除此之外|另一方面|还可能|未必只是|不只/.test(text)) {
     signals.push('alternative')
     observations.push('你已经开始提出不止一种解释或可能性。')
     state = { ...state, alternatives: addUnique(state.alternatives, excerpt) }
   }
 
-  if (!isRetraction && !hasInabilitySignal(text) && hasBoundarySignal(text)) {
+  if (!hasInabilitySignal(text) && /如果.{1,48}(?:就|会|那么)|除非.{2,}|取决于.{2,}|只有.{1,}才|在.{1,}情况下|前提是.{2,}|只要.{1,}/.test(text)) {
     signals.push('boundary')
     observations.push('你已经给当前判断加上了条件或边界。')
     state = { ...state, boundaries: addUnique(state.boundaries, excerpt) }
   }
 
-  if (!isRetraction && !hasInabilitySignal(text) && /我(?:最|更)?(?:看重|在乎|希望|想要)|我的(?:目标|底线)|不能接受|优先考虑/.test(text)) {
+  if (!hasInabilitySignal(text) && /我(?:更)?(?:看重|在乎|希望|想要)|我的(?:目标|底线)|不能接受|优先考虑/.test(text)) {
     signals.push('goal')
     observations.push('你表达了一个目标、优先级或底线。')
     state = { ...state, goals: addUnique(state.goals, excerpt) }
   }
 
-  if (/一定|肯定|必然|都这样|总是|完全|从来|所有人|任何情况下/.test(text)) {
+  if (/(?<!不|不能|不应|不是|不必)一定|肯定|必然|都这样|总是|(?<!不|不能|不应|不是)完全|从来|所有人|任何情况下/.test(text)) {
     signals.push('absolute_claim')
     observations.push('你的表述里有比较强的绝对判断，后面值得专门检查它的边界。')
     state = { ...state, assumptions: addUnique(state.assumptions, `“${excerpt}”目前被表达成接近无例外的判断。`) }
@@ -445,15 +386,15 @@ export function analyzeResponse(session: ThinkingSession, responseItem: TraceIte
     state = { ...state, changedIdeas: addUnique(state.changedIdeas, clip(text, 120)) }
   }
 
-  if (isRetraction) {
+  if (hasRetractionSignal(text)) {
     signals.push('retraction')
     observations.push('你撤回或削弱了前面的一条理由/例子；旧记录会保留，但后续不应再把它当成未被质疑的依据。')
     state = { ...state, changedIdeas: addUnique(state.changedIdeas, `撤回/修正：${clip(text, 100)}`) }
   }
 
-  if (updatesPosition && session.cognitiveState.currentPosition && normalizeComparable(session.cognitiveState.currentPosition) !== normalizeComparable(nextPosition)) {
+  if (updatesPosition && session.cognitiveState.currentPosition && normalizeComparable(session.cognitiveState.currentPosition) !== normalizeComparable(text)) {
     signals.push('position_revision')
-    state = { ...state, changedIdeas: addUnique(state.changedIdeas, `当前判断更新为：${clip(nextPosition, 100)}`) }
+    state = { ...state, changedIdeas: addUnique(state.changedIdeas, `当前判断更新为：${clip(text, 100)}`) }
   }
 
   if (observations.length === 0) observations.push(`你补充了这一轮的具体表达：“${excerpt}”。`)
@@ -520,11 +461,7 @@ export function generateQuestionLocal(move: CognitiveMove, session: ThinkingSess
     seek_counterexample: () => `针对“${focus}”，能不能找一种表面条件相似、结果却相反的情况？`,
     request_source: () => `要检查“${focus}”，你最值得追查的一个原始来源是什么？`,
     request_evidence: () => `要检查“${focus}”，哪一种具体证据最可能改变你现在的判断？`,
-    test_boundary: () => {
-      const anchor = current || focus
-      if (session.cognitiveType === 'decision') return `你目前的选择是“${anchor}”。出现什么情况时，你会改选另一边？只说最关键的一种。`
-      return `你目前的判断是“${anchor}”。它在什么情况下可能不成立？给这个判断划一条最重要的边界。`
-    },
+    test_boundary: () => `你现在的说法是“${focus}”。它在什么情况下可能不成立？给这个判断划一条最重要的边界。`,
     define_criteria: () => `面对这个选择，你最想守住的一条标准是什么？`,
     expose_tradeoff: () => `如果按现在更倾向的方向走，你最可能要付出哪一个代价？`,
     isolate_blocker: () => `面对“${clip(session.question, 38)}”，真正让你停住的是哪一个最小步骤？`,
@@ -582,6 +519,11 @@ export function appendIntervention(
     provider?: string
     model?: string
     contextAnchor?: string
+    title?: string
+    objective?: string
+    whyNow?: string
+    reflection?: string
+    decisionSource?: 'local' | 'ai'
   },
 ): ThinkingSession {
   const { move } = options
@@ -591,12 +533,13 @@ export function appendIntervention(
   const item: TraceItem = {
     id: questionId,
     kind: interventionKind(move),
-    title: cognitiveMoveLabel[move],
+    title: options.title || cognitiveMoveLabel[move],
     content: options.content,
     createdAt: Date.now(),
     move,
     plannerRecordId: recordId,
     source: options.source === 'ai' ? 'ai' : 'local_engine',
+    ...(options.reflection ? { reflection: options.reflection } : {}),
   }
 
   const recordBase: PlannerRecord = {
@@ -606,13 +549,14 @@ export function appendIntervention(
     trigger: options.trigger ?? 'user_response',
     cognitiveType: session.cognitiveType,
     chosenMove: move,
-    objective: moveObjective[move],
-    whyNow: plannerWhy(move, session),
+    objective: options.objective || moveObjective[move],
+    whyNow: options.whyNow || plannerWhy(move, session),
     focusExcerpt: options.contextAnchor || latestAnalysis?.excerpt || session.cognitiveState.focus || clip(session.question, 46),
     observations: latestAnalysis?.observations ?? [session.diagnosisReason],
     questionId,
     generationSource: options.source ?? 'local',
     contextAnchor: options.contextAnchor,
+    decisionSource: options.decisionSource || 'local',
   }
   const withProvider = options.provider ? { ...recordBase, provider: options.provider } : recordBase
   const withModel = options.model ? { ...withProvider, model: options.model } : withProvider
@@ -633,12 +577,20 @@ export function appendNextInterventionLocal(
   session: ThinkingSession,
   trigger: PlannerRecord['trigger'] = 'user_response',
 ): ThinkingSession {
-  const move = selectNextMove(session)
+  let move = selectNextMove(session)
+  let content = session.analyses.at(-1)?.engagement === 'stuck' ? getQuestionSupport(move, session).rephrase : generateQuestionLocal(move, session)
+  const recent = session.trace.filter((item) => item.kind !== 'user' && item.kind !== 'question').slice(-8)
+  if (recent.some((item) => textSimilarity(item.content, content) >= 0.86)) {
+    const options: CognitiveMove[] = ['specific_example', 'define_criteria', 'test_boundary', 'formulate_test', 'clarify_focus']
+    const alternate = options.find((candidate) => !recent.some((item) => item.move === candidate))
+    const canClarifyChoice = move === 'state_position' && !session.cognitiveState.currentPosition && recent.filter((item) => item.move === 'state_position').length < 2
+    if (canClarifyChoice) content = '先不解释理由：这个选择里，你愿意先试哪一个方向？'
+    else if (alternate) { move = alternate; content = generateQuestionLocal(move, session) }
+    else content = `先停下重复追问。围绕“${clip(session.question, 28)}”，你想保留的一个关键词是什么？也可以先整理这次思考。`
+  }
   return appendIntervention(session, {
     move,
-    content: session.analyses.at(-1)?.engagement === 'stuck'
-      ? getQuestionSupport(move, session).rephrase
-      : generateQuestionLocal(move, session),
+    content,
     trigger,
     source: 'local',
   })

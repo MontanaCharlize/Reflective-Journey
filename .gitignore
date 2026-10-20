@@ -3,7 +3,23 @@ dist
 .env
 .env.*
 !.env.example
+!.env.production.example
 .DS_Store
 *.log
 
 *.tsbuildinfo
+data/
+.backups/
+.qa/
+.playwright-cli/
+.artifacts/
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.db
+*.db-*
+*.pem
+*.key
+*.zip
+*.rar
+*.7z

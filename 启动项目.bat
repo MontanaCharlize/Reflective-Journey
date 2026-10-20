@@ -1,18 +1,32 @@
 @echo off
 chcp 65001 >nul
+setlocal
 cd /d "%~dp0"
-echo [反思之旅 V0.5] 正在检查依赖...
-if not exist node_modules (
-  echo 首次运行，正在执行 npm install...
-  call npm install
-  if errorlevel 1 pause & exit /b 1
+set "RJ_NODE=node"
+if exist "%~dp0runtime\node.exe" set "RJ_NODE=%~dp0runtime\node.exe"
+"%RJ_NODE%" -e "const [major,minor]=process.versions.node.split('.').map(Number);process.exit(major>24||(major===24&&minor>=13)?0:1)"
+if errorlevel 1 (
+  echo 请使用随附 Windows 运行版，或安装 Node.js 24.13 及以上版本。
+  pause
+  exit /b 1
 )
-if not exist .env.local (
-  echo.
-  echo [提示] 尚未发现 .env.local。网站仍可用本地认知引擎运行。
-  echo 如需真实 AI，请复制 .env.example 为 .env.local 并填写 API Key。
-  echo.
+if not exist dist\index.html (
+  if exist "%~dp0runtime\node.exe" (
+    echo 运行包缺少构建文件。请重新完整解压 Windows 运行版。
+    goto failed
+  )
+  echo 正在准备源码运行环境，请保持网络连接...
+  call npm ci
+  if errorlevel 1 goto failed
+  call npm run build
+  if errorlevel 1 goto failed
 )
-echo 正在启动开发服务器...
-call npm run dev
+echo 反思之旅 正在启动...
+"%RJ_NODE%" scripts\start-local.mjs %*
+if errorlevel 1 goto failed
+exit /b 0
+:failed
+echo.
+echo 启动尚未完成，请按上方提示检查。现有配置和记录没有被覆盖。
 pause
+exit /b 1

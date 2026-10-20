@@ -1,4 +1,7 @@
-const base = process.env.RJ_DEV_URL || 'http://localhost:5173'
+import { loadProjectEnv } from '../server/env.mjs'
+
+const env = loadProjectEnv(process.cwd())
+const base = env.RJ_DEV_URL || 'http://localhost:5173'
 
 const sample = {
   schemaVersion: 5,
@@ -38,7 +41,7 @@ const sample = {
 try {
   const res = await fetch(`${base}/api/ai/arena`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: new URL(base).origin, 'X-RJ-Arena-Token': env.RJ_ARENA_TOKEN || '' },
     body: JSON.stringify({
       session: sample,
       move: 'specify_mechanism',
@@ -48,7 +51,7 @@ try {
   })
   const data = await res.json()
   if (!data.ok) throw new Error(data.message || '竞技场请求失败')
-  console.log('\n反思之旅 · V0.5 模型竞技场')
+  console.log('\n反思之旅 · V0.6 模型竞技场')
   console.log('认知动作：specify_mechanism\n')
   for (const candidate of data.candidates || []) {
     console.log(`--- ${candidate.provider}${candidate.model ? ` / ${candidate.model}` : ''} ---`)
@@ -61,7 +64,7 @@ try {
   }
   console.log('建议人工比较：上下文针对性 / 认知动作正确性 / 不泄露答案 / 不重复 / 单一认知负荷 / 认知推进量。\n')
 } catch (error) {
-  console.error('模型竞技场无法运行。请先在另一个终端执行 npm run dev，并确认 .env.local 至少配置一个 Provider。')
+  console.error('模型竞技场无法运行。请先启动网站，并在服务端和 CLI 配置相同的 RJ_ARENA_TOKEN；RJ_DEV_URL 需指向该网站。')
   console.error(error instanceof Error ? error.message : error)
   process.exitCode = 1
 }

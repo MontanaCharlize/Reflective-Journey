@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { fitNoteLayout, loadQuickNote, NOTES_CHANGED, NOTES_OPEN, noteViewport, saveQuickNote } from '../lib/quick-notes'
 import type { NoteLayout, QuickNote } from '../lib/quick-notes'
+import { workspaceKey } from '../lib/workspace'
+import { appendDictation } from '../lib/voice-input'
+import { VoiceInput } from './VoiceInput'
 
 interface Interaction { kind: 'move' | 'resize'; pointerId: number; startX: number; startY: number; layout: NoteLayout; target: HTMLElement }
 
@@ -33,7 +36,7 @@ export function QuickNotes() {
     const open = () => { update({ ...current.current, open: true }); editor.current?.focus() }
     const fit = () => update({ ...current.current, layout: fitNoteLayout(current.current.layout, noteViewport()) })
     const fromOtherTab = (event: StorageEvent) => {
-      if (event.key === 'reflective-journey/v0.5/quick-note') refresh()
+      if (event.key === workspaceKey('quick-note')) refresh()
     }
     window.addEventListener(NOTES_CHANGED, refresh)
     window.addEventListener(NOTES_OPEN, open)
@@ -116,6 +119,7 @@ export function QuickNotes() {
         <button className="quick-note-icon" aria-label="收起随手记" onClick={() => update({ ...current.current, open: false })}><X size={16} /></button>
       </div>
       <textarea ref={editor} aria-label="随手记内容" value={note.text} placeholder="一个念头、几个关键词，先随手留下来……" onChange={(event) => update({ ...current.current, text: event.target.value, updatedAt: Date.now() })} />
+      <VoiceInput compact label="语音输入随手记" onText={(text) => update({ ...current.current, text: appendDictation(current.current.text, text), updatedAt: Date.now() })} />
       <div className="quick-note-footer"><span role="status">{error ? '暂未保存' : '已保存在此浏览器'}</span><button className="text-action" disabled={!note.text} onClick={download}><Download size={13} />导出</button></div>
       {error && <p className="quick-note-error" role="alert">{error}</p>}
       <button className="quick-note-resize" aria-label="调整随手记大小，可用方向键缩放" onPointerDown={(event) => begin(event, 'resize')} onKeyDown={(event) => keyboard(event, 'resize')} />

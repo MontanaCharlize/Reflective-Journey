@@ -7,10 +7,14 @@ import { clearDraft, loadDraft, saveDraft, saveSession } from '../lib/storage'
 import type { SessionDraft, ThinkingSession } from '../lib/types'
 import { ProcessTrail } from './ProcessTrail'
 import { IdleCheckIn } from './IdleCheckIn'
+import { getWorkspaceOwner } from '../lib/workspace'
+import { appendDictation } from '../lib/voice-input'
+import { VoiceInput } from './VoiceInput'
+import { AiSessionStatus } from './AiSessionStatus'
 
 const guideLabel = { guide: '一个追问', evidence: '值得检查', counterexample: '换一个角度', synthesis: '整理一下' } as const
 
-export function ThinkingSessionView({ initialSession, onChange, onComplete, onRestart, onPause, onBranch, onReturnToOrigin }: {
+export function ThinkingSessionView({ initialSession, onChange, onComplete, onRestart, onPause, onBranch, onReturnToOrigin, onOpenCommunitySource, onAccount, onLab }: {
   initialSession: ThinkingSession
   onChange: (session: ThinkingSession) => void
   onComplete: (session: ThinkingSession) => void
@@ -18,6 +22,9 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
   onPause: () => void
   onBranch: (question: string) => Promise<void>
   onReturnToOrigin?: () => void
+  onOpenCommunitySource?: () => void
+  onAccount?: () => void
+  onLab?: () => void
 }) {
   const [session, setSession] = useState(initialSession)
   const [draft, setDraft] = useState(() => loadDraft(initialSession.id))
@@ -26,8 +33,11 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
   const [branching, setBranching] = useState(false)
   const [turnError, setTurnError] = useState('')
   const [draftError, setDraftError] = useState('')
+  const [dictating, setDictating] = useState(false)
+  const draftRef = useRef(draft)
   const request = useRef<AbortController | null>(null)
   const mounted = useRef(true)
+  const ownerAtMount = useRef(getWorkspaceOwner())
   useEffect(() => {
     mounted.current = true
     return () => { mounted.current = false; request.current?.abort() }
@@ -44,12 +54,15 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
   }, [latest?.id, showFinish, userTurns])
 
   const updateDraft = (next: SessionDraft) => {
+    if (ownerAtMount.current !== getWorkspaceOwner()) return
+    draftRef.current = next
     setDraft(next)
     try { saveDraft(session.id, next); setDraftError('') }
     catch (error) { setDraftError(error instanceof Error ? error.message : '草稿暂时无法保存。') }
   }
-  const edit = (field: keyof SessionDraft, value: string) => updateDraft({ ...draft, [field]: value })
+  const edit = (field: keyof SessionDraft, value: string) => updateDraft({ ...draftRef.current, [field]: value })
   const commit = (next: ThinkingSession) => {
+    if (ownerAtMount.current !== getWorkspaceOwner()) throw new DOMException('账户已变化，这一轮已暂停。', 'AbortError')
     const saved = saveSession(next)
     setSession(saved)
     onChange(saved)
@@ -82,7 +95,7 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
   }
 
   const continueThinking = () => {
-    if (!draft.response.trim() || busy) return
+    if (!draft.response.trim() || busy || dictating) return
     try {
       // 先落盘用户原话，刷新、离开或取消请求均可恢复这一轮。
       const pending = commit(prepareUserResponse(session, draft.response))
@@ -110,6 +123,17 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
     setBranching(true)
     try { await onBranch(question) }
     finally { if (mounted.current) setBranching(false) }
+  }
+  const reconnect = () => {
+    if (busy) return
+    const next = commit({ ...session, dialogueMode: 'ai' })
+    void processTurn(next)
+  }
+  const useLocal = () => {
+    if (busy) return
+    const next = commit({ ...session, dialogueMode: 'local', aiRuntime: { mode: 'local', status: 'local' } })
+    setTurnError('')
+    if (next.pendingResponseId || next.trace.length === 1) void processTurn(next)
   }
 
   const finish = () => {
@@ -139,11 +163,13 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
   return (
     <main className="session-shell">
       <section className="session-head">
+        {session.communitySource && <p className="source-card-note">接续自 {session.communitySource.authorName} 的思考卡。这里先形成你自己的判断。{onOpenCommunitySource && <button className="text-action" onClick={onOpenCommunitySource}>查看来源 ↗</button>}</p>}
         {onReturnToOrigin && <button className="text-action origin-link" onClick={onReturnToOrigin}>↶ 返回原来的问题</button>}
         <div className="session-meta"><span>{userTurns} 次自己的回答</span><span>·</span><span>记录保存在此浏览器</span></div>
         <h1>{session.question}</h1>
         <p className="diagnosis-note">一句话、一个猜测，或暂时不知道，都可以成为下一步。</p>
       </section>
+      <AiSessionStatus session={session} busy={busy} onRetry={reconnect} onLocal={useLocal} onAccount={onAccount} onLab={onLab} />
       <ProcessTrail session={session} />
       <section className="thought-stream" aria-label="思考轨迹">
         {session.trace.slice(1).map((item) => {
@@ -152,12 +178,13 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
           const analysis = planner?.sourceResponseId ? session.analyses.find((entry) => entry.responseId === planner.sourceResponseId) : undefined
           const rephrase = session.supportRecords.find((record) => record.questionId === item.id && record.kind === 'rephrase')
           const hint = session.supportRecords.find((record) => record.questionId === item.id && record.kind === 'hint')
+          const reflection = item.reflection || analysis?.observations[0]
           return (
             <article key={item.id} id={'trace-' + item.id} className={isUser ? 'trace user-trace' : 'trace guide-trace'}>
               <div className="trace-rail" aria-hidden="true"><span className={isUser ? 'trace-dot user-dot' : 'trace-dot guide-dot'} /></div>
               <div className="trace-body">
-                {!isUser && analysis?.observations[0] && <div className="turn-feedback"><span>从你的回答里</span><p>{analysis.observations[0]}</p><small>如果理解有偏差，可以在下一条回答里纠正。</small></div>}
-                <div className="trace-label">{isUser ? '你的思考' : guideLabel[item.kind as keyof typeof guideLabel] ?? '思考提示'}</div>
+                {!isUser && reflection && <div className="turn-feedback"><span>{item.source === 'ai' ? '一起想一想' : '本地提纲整理'}</span><p>{reflection}</p></div>}
+                <div className="trace-label">{isUser ? '你的思考' : item.source === 'ai' ? '接下来，可以从这里想' : guideLabel[item.kind as keyof typeof guideLabel] ?? '思考提示'}</div>
                 {item.title && !isUser && <h2>{item.title}</h2>}
                 <p>{rephrase?.content || item.content}</p>
                 {hint && <aside className="support-note"><Lightbulb size={15} /><p>{hint.content}</p></aside>}
@@ -185,19 +212,20 @@ export function ThinkingSessionView({ initialSession, onChange, onComplete, onRe
           </div>
           <label htmlFor="thinking-response">先留下一点自己的想法</label>
           <textarea id="thinking-response" value={draft.response} disabled={busy} onChange={(event) => edit('response', event.target.value)} placeholder="不用一次想清楚。先写一句也可以。" rows={4} />
+          <VoiceInput label="语音输入回答" disabled={busy} onActiveChange={setDictating} onText={(text) => edit('response', appendDictation(draftRef.current.response, text))} />
           <IdleCheckIn key={latest?.id} questionId={latest?.id || ''} question={session.question} enabled={!busy && !showFinish && !session.pendingResponseId && !needsFirstQuestion} thought={draft.sideThought || ''}
             onThoughtChange={(text) => edit('sideThought', text)} onHint={() => help('hint')} onBranch={branch}
             onUseThought={(text) => { updateDraft({ ...draft, sideThought: '', response: draft.response ? `${draft.response}\n${text}` : text }); document.getElementById('thinking-response')?.focus() }} />
           <div className="response-actions">
             <button className="text-action" onClick={onRestart} disabled={busy}><RotateCcw size={14} />重新开始</button>
-            <button className="primary-action" onClick={continueThinking} disabled={!draft.response.trim() || busy}><CornerDownRight size={16} />继续思考</button>
+            <button className="primary-action" onClick={continueThinking} disabled={!draft.response.trim() || busy || dictating}><CornerDownRight size={16} />继续思考</button>
           </div>
         </>}
         <div className="session-exit-actions">
           <button className="text-action" onClick={onPause}>先停在这里</button>
-          {isReadyToSynthesize(session) && <button className="secondary-action" onClick={openFinish} disabled={busy}>整理这次思考</button>}
+          {isReadyToSynthesize(session) && <button className="secondary-action" onClick={openFinish} disabled={busy || dictating}>整理这次思考</button>}
         </div>
-        {turnError && <p className="inline-error" role="alert">{turnError}</p>}
+        {turnError && turnError !== session.aiRuntime.lastError && <p className="inline-error" role="alert">{turnError}</p>}
         {draftError && <p className="inline-error" role="alert">{draftError}</p>}
       </section>}
 
